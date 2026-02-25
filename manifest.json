@@ -1,6 +1,6 @@
 {
-	"id": "pokemon-tcg-tracker",
-	"name": "Pokemon TCG Tracker",
+	"id": "000pokemon-tcg-tracker",
+	"name": "000Pokemon TCG Tracker",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Tracks your Pokemon TCG collection in simple markdown.",

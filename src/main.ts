@@ -1,76 +1,55 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
+import {Notice, Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, PluginSettings, PTTSettings} from "./settings";
+import {TCGService} from "./api/tcgService";
 
-// Remember to rename these classes and interfaces!
-
-export default class pokemonTCGTracker extends Plugin {
+export default class PokemonTCGTracker extends Plugin {
 	settings: PluginSettings;
+	tcgService: TCGService;
 
 	async onload() {
 		await this.loadSettings();
+		this.tcgService = new TCGService("en");
 
-		// // This creates an icon in the left ribbon.
-		// this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-		// 	// Called when the user clicks the icon.
-		// 	new Notice('This is a notice!');
-		// });
-
-		// // This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		// const statusBarItemEl = this.addStatusBarItem();
-		// statusBarItemEl.setText('Status bar text');
-
-		// // This adds a simple command that can be triggered anywhere
-		// this.addCommand({
-		// 	id: 'open-modal-simple',
-		// 	name: 'Open modal (simple)',
-		// 	callback: () => {
-		// 		new PokemonModal(this.app).open();
-		// 	}
-		// });
-		// // This adds an editor command that can perform some operation on the current editor instance
-		// this.addCommand({
-		// 	id: 'replace-selected',
-		// 	name: 'Replace selected content',
-		// 	editorCallback: (editor: Editor, view: MarkdownView) => {
-		// 		editor.replaceSelection('Sample editor command');
-		// 	}
-		// });
-		// // This adds a complex command that can check whether the current state of the app allows execution of the command
-		// this.addCommand({
-		// 	id: 'open-modal-complex',
-		// 	name: 'Open modal (complex)',
-		// 	checkCallback: (checking: boolean) => {
-		// 		// Conditions to check
-		// 		const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-		// 		if (markdownView) {
-		// 			// If checking is true, we're simply "checking" if the command can be run.
-		// 			// If checking is false, then we want to actually perform the operation.
-		// 			if (!checking) {
-		// 				new PokemonModal(this.app).open();
-		// 			}
-
-		// 			// This command will only show up in Command Palette when the check function returns true
-		// 			return true;
-		// 		}
-		// 		return false;
-		// 	}
-		// });
-
-		// // This adds a settings tab so the user can configure various aspects of the plugin
-		// this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// // If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// // Using this function will automatically remove the event listener when this plugin is disabled.
-		// this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-		// 	new Notice("Click");
-		// });
-
-		// // When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		// this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
+		this.addSettingTab(new PTTSettings(this.app, this));
 	}
 
 	onunload() {
+	}
+
+	/** Create a markdown file for a tracked set, listing every card name. */
+	async createSetFile(setId: string, setName: string): Promise<void> {
+		const folder = this.settings.vaultFolder;
+		const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+
+		// Ensure the folder exists
+		if (folder) {
+			const existing = this.app.vault.getAbstractFileByPath(folder);
+			if (!existing) {
+				await this.app.vault.createFolder(folder);
+			}
+		}
+
+		// Fetch cards in the set
+		let lines: string[];
+		try {
+			const cards = await this.tcgService.getCardsInSet(setId);
+			lines = cards.map((c) => c.name);
+		} catch (e) {
+			new Notice(`Failed to fetch cards for ${setName}.`);
+			return;
+		}
+
+		const content = lines.join("\n") + "\n";
+
+		// Create or overwrite the file
+		const existingFile = this.app.vault.getAbstractFileByPath(filePath);
+		if (existingFile) {
+			await this.app.vault.modify(existingFile as any, content);
+		} else {
+			await this.app.vault.create(filePath, content);
+		}
+
+		new Notice(`Created file: ${filePath}`);
 	}
 
 	async loadSettings() {
@@ -79,21 +58,5 @@ export default class pokemonTCGTracker extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-}
-
-class PokemonModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
 	}
 }
