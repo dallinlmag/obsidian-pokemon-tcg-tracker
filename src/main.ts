@@ -43,6 +43,13 @@ export default class PokemonTCGTracker extends Plugin {
 				.map(([k]) => k)
 				.join(", ") || "None";
 
+			const variantCountList = [
+				details.cardCount.normal > 0 ? `Normal: ${details.cardCount.normal}` : null,
+				details.cardCount.reverse > 0 ? `Reverse: ${details.cardCount.reverse}` : null,
+				details.cardCount.holo > 0 ? `Holo: ${details.cardCount.holo}` : null,
+				details.cardCount.firstEd != null && details.cardCount.firstEd > 0 ? `First Ed: ${details.cardCount.firstEd}` : null,
+			].filter((value): value is string => value !== null).join(", ") || "None";
+
 			const header = [
 				"",
 				(details.logo ? `![Set Logo](${details.logo}.webp)` : "") + "    " + (details.symbol ? `![Set Symbol](${details.symbol}.webp)` : ""),
@@ -51,7 +58,7 @@ export default class PokemonTCGTracker extends Plugin {
 				`**Official Cards:**\t${details.cardCount.official}`,
 				`**Total Cards:**\t${details.cardCount.total}`,
 				`**Variants:**\t${variantList}`,
-				`**Variant count:**\tNormal: ${details.cardCount.normal}, Reverse: ${details.cardCount.reverse}, Holo: ${details.cardCount.holo}${details.cardCount.firstEd != null ? `, First Ed: ${details.cardCount.firstEd}` : ""}`,
+				`**Variant count:**\t${variantCountList}`,
 				"",
 			];
 
