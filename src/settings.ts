@@ -105,6 +105,13 @@ export class PTTSettings extends PluginSettingTab {
 				.setName(name)
 				.setDesc(setId)
 				.addExtraButton(btn => btn
+					.setIcon("refresh-cw")
+					.setTooltip("Reset set file")
+					.onClick(async () => {
+						new Notice(`Resetting ${name}…`);
+						await this.plugin.createSetFile(setId, name);
+					}))
+				.addExtraButton(btn => btn
 					.setIcon("cross")
 					.setTooltip("Remove set")
 					.onClick(async () => {

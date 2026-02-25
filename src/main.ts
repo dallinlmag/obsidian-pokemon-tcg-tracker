@@ -29,17 +29,45 @@ export default class PokemonTCGTracker extends Plugin {
 			}
 		}
 
-		// Fetch cards in the set
-		let lines: string[];
+		// Fetch set details
+		let content: string;
 		try {
-			const cards = await this.tcgService.getCardsInSet(setId);
-			lines = cards.map((c) => c.name);
+			const details = await this.tcgService.getSetDetails(setId);
+			if (!details) {
+				new Notice(`Set not found: ${setName}`);
+				return;
+			}
+
+			const variantList = Object.entries(details.variants)
+				.filter(([, v]) => v)
+				.map(([k]) => k)
+				.join(", ") || "None";
+
+			const header = [
+				"",
+				(details.logo ? `![Set Logo](${details.logo}.webp)` : "") + "    " + (details.symbol ? `![Set Symbol](${details.symbol}.webp)` : ""),
+				"",
+				`**Release Date:**\t${details.releaseDate}`,
+				`**Official Cards:**\t${details.cardCount.official}`,
+				`**Total Cards:**\t${details.cardCount.total}`,
+				`**Variants:**\t${variantList}`,
+				`**Variant count:**\tNormal: ${details.cardCount.normal}, Reverse: ${details.cardCount.reverse}, Holo: ${details.cardCount.holo}${details.cardCount.firstEd != null ? `, First Ed: ${details.cardCount.firstEd}` : ""}`,
+				"",
+			];
+
+			const tableLines = [
+				"| Number | Owned | Name | DexId | Rarity | Variant | Category |",
+				"| ------ | ----- | ---- | ----- | ------ | ------- | -------- |",
+				...details.cards.map((c) =>
+					`| ${c.localId} | 0 | ${c.name} | ${c.dexId} | ${c.rarity} | ${c.variants} | ${c.category} |`
+				),
+			];
+
+			content = [...header, ...tableLines].join("\n") + "\n";
 		} catch (e) {
 			new Notice(`Failed to fetch cards for ${setName}.`);
 			return;
 		}
-
-		const content = lines.join("\n") + "\n";
 
 		// Create or overwrite the file
 		const existingFile = this.app.vault.getAbstractFileByPath(filePath);
