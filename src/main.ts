@@ -128,7 +128,13 @@ export default class PokemonTCGTracker extends Plugin {
 
 			const header = [
 				"",
-				(details.logo ? `![Set Logo](${details.logo}.webp)` : "") + "    " + (details.symbol ? `![Set Symbol](${details.symbol}.webp)` : ""),
+				`<center>`,
+				"",
+				details.logo ? `![Set Logo|300](${details.logo}.webp)` : "",
+				"",
+				details.symbol ? `![Set Symbol|100](${details.symbol}.webp)` : "",
+				"",
+				`</center>`,
 				"",
 				`**Release Date:**\t${details.releaseDate}`,
 				// `**Official Cards:**\t${details.cardCount.official}`,
