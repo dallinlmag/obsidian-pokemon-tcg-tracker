@@ -62,12 +62,41 @@ export default class PokemonTCGTracker extends Plugin {
 				"",
 			];
 
+			// Determine which variant columns this set has
+			// Use set-level variants if available, otherwise derive from card data
+			const variantKeys: string[] = [];
+			const allVariantNames = ["normal", "holo", "reverse", "firstEdition"];
+			if (details.variants && Object.values(details.variants).some(v => v)) {
+				for (const k of allVariantNames) {
+					if ((details.variants as Record<string, boolean | undefined>)[k]) {
+						variantKeys.push(k);
+					}
+				}
+			} else {
+				// Derive from cards
+				const found = new Set<string>();
+				for (const c of details.cards) {
+					for (const v of c.variants.split(", ").filter(Boolean)) {
+						found.add(v);
+					}
+				}
+				for (const k of allVariantNames) {
+					if (found.has(k)) variantKeys.push(k);
+				}
+			}
+
+			const variantHeaders = variantKeys.map(k => ` ${k} |`).join("");
+			const variantSeparators = variantKeys.map(() => " --- |").join("");
+
 			const tableLines = [
-				"| Number | Owned | Name | DexId | Rarity | Variant | Category |",
-				"| ------ | ----- | ---- | ----- | ------ | ------- | -------- |",
-				...details.cards.map((c) =>
-					`| ${c.localId} | 0 | ${c.name} | ${c.dexId} | ${c.rarity} | ${c.variants} | ${c.category} |`
-				),
+				`| Number | Owned | Name | DexId | Rarity | Category | Variant |${variantHeaders}`,
+				`| ------ | ----- | ---- | ----- | ------ | -------- | ------- |${variantSeparators}`,
+				...details.cards.map((c) => {
+					const variantCells = variantKeys.map(k =>
+						` ${c.variants.includes(k) ? "0" : ""} |`
+					).join("");
+					return `| ${c.localId} | 0 | ${c.name} | ${c.dexId} | ${c.rarity} | ${c.category} | ${c.variants} |${variantCells}`;
+				}),
 			];
 
 			content = [...header, ...tableLines].join("\n") + "\n";

@@ -61,9 +61,10 @@ export class TCGService {
 		const cards: CardSummary[] = [];
 		for (const resume of set.cards) {
 			const full = await resume.getCard();
-			const variants = full?.variants
+			const variantStr = full?.variants
 				? Object.entries(full.variants).filter(([, v]) => v).map(([k]) => k).join(", ")
 				: "";
+			const variants = variantStr || "normal";
 			cards.push({
 				id: resume.id,
 				localId: resume.localId,
