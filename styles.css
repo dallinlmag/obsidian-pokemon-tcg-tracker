@@ -1,8 +1,42 @@
 /*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
+ * Pokemon TCG Tracker – progress bar styling
+ */
+.ptt-progress-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 2px 0;
+	font-family: var(--font-monospace);
+	font-size: var(--font-smaller);
+}
+.ptt-progress-label {
+	min-width: 100px;
+	text-align: right;
+	font-weight: bold;
+}
+.ptt-progress-count {
+	min-width: 60px;
+}
+.ptt-progress-bar {
+	width: 400px;
+	flex-shrink: 0;
+	height: 16px;
+	appearance: none;
+	-webkit-appearance: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	overflow: hidden;
+	background: var(--background-secondary);
+}
+.ptt-progress-bar::-webkit-progress-bar {
+	background: var(--background-secondary);
+	border-radius: 4px;
+}
+.ptt-progress-bar::-webkit-progress-value {
+	background: #4caf50;
+	border-radius: 4px;
+}
+.ptt-progress-bar::-moz-progress-bar {
+	background: #4caf50;
+	border-radius: 4px;
+}

@@ -50,18 +50,6 @@ export default class PokemonTCGTracker extends Plugin {
 				details.cardCount.firstEd != null && details.cardCount.firstEd > 0 ? `First Ed: ${details.cardCount.firstEd}` : null,
 			].filter((value): value is string => value !== null).join(", ") || "None";
 
-			const header = [
-				"",
-				(details.logo ? `![Set Logo](${details.logo}.webp)` : "") + "    " + (details.symbol ? `![Set Symbol](${details.symbol}.webp)` : ""),
-				"",
-				`**Release Date:**\t${details.releaseDate}`,
-				`**Official Cards:**\t${details.cardCount.official}`,
-				`**Total Cards:**\t${details.cardCount.total}`,
-				`**Variants:**\t${variantList}`,
-				`**Variant count:**\t${variantCountList}`,
-				"",
-			];
-
 			// Determine which variant columns this set has
 			// Use set-level variants if available, otherwise derive from card data
 			const variantKeys: string[] = [];
@@ -84,6 +72,49 @@ export default class PokemonTCGTracker extends Plugin {
 					if (found.has(k)) variantKeys.push(k);
 				}
 			}
+
+			// --- Build progress tracking section ---
+			const officialCount = details.cardCount.official;
+			const totalCount = details.cardCount.total;
+
+			const progressLine = (label: string, owned: number, total: number) =>
+				`<div class="ptt-progress-row">` +
+				`<span class="ptt-progress-label">${label}:</span>` +
+				`<span class="ptt-progress-count">${owned}/${total}</span>` +
+				`<progress class="ptt-progress-bar" value="${owned}" max="${total}"></progress>` +
+				`</div>`;
+
+			// Variant totals: count how many cards have each variant
+			const variantTotals: Record<string, number> = {};
+			for (const k of variantKeys) {
+				variantTotals[k] = details.cards.filter(c => c.variants.includes(k)).length;
+			}
+
+			const trackingLines = [
+				"<!-- ptt-tracking-start -->",
+				`<div class="ptt-tracking">`,
+				"",
+				progressLine("Official", 0, officialCount),
+				progressLine("Total", 0, totalCount),
+				...variantKeys.map(k => progressLine(k.charAt(0).toUpperCase() + k.slice(1), 0, variantTotals[k] ?? 0)),
+				"",
+				`</div>`,
+				"<!-- ptt-tracking-end -->",
+				"",
+			];
+
+			const header = [
+				"",
+				(details.logo ? `![Set Logo](${details.logo}.webp)` : "") + "    " + (details.symbol ? `![Set Symbol](${details.symbol}.webp)` : ""),
+				"",
+				`**Release Date:**\t${details.releaseDate}`,
+				// `**Official Cards:**\t${details.cardCount.official}`,
+				// `**Total Cards:**\t${details.cardCount.total}`,
+				// `**Variants:**\t${variantList}`,
+				// `**Variant count:**\t${variantCountList}`,
+				// "",
+				...trackingLines,
+			];
 
 			const variantHeaders = variantKeys.map(k => ` ${k} |`).join("");
 			const variantSeparators = variantKeys.map(() => " --- |").join("");
