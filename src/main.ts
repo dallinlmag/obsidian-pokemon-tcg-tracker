@@ -1,6 +1,7 @@
 import {Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, PluginSettings, PTTSettings} from "./settings";
 import {TCGService} from "./api/tcgService";
+import {CardEntryWidget} from "./ui/CardEntryWidget";
 
 export default class PokemonTCGTracker extends Plugin {
 	settings: PluginSettings;
@@ -13,6 +14,12 @@ export default class PokemonTCGTracker extends Plugin {
 		this.tcgService = new TCGService("en");
 
 		this.addSettingTab(new PTTSettings(this.app, this));
+
+		// Register the portable card entry widget
+		const widget = new CardEntryWidget(this);
+		this.registerMarkdownCodeBlockProcessor("ptt-widget", (source, el, ctx) => {
+			widget.render(el, ctx);
+		});
 
 		// Listen for file modifications to update progress bars
 		this.registerEvent(
@@ -128,13 +135,8 @@ export default class PokemonTCGTracker extends Plugin {
 
 			const header = [
 				"",
-				`<center>`,
-				"",
-				details.logo ? `![Set Logo|300](${details.logo}.webp)` : "",
-				"",
-				details.symbol ? `![Set Symbol|100](${details.symbol}.webp)` : "",
-				"",
-				`</center>`,
+				details.logo ? `<center><img src="${details.logo}.webp" alt="Set Logo" style="max-width:300px; max-height:300px;"></center>` : "",
+				details.symbol ? `<center><img src="${details.symbol}.webp" alt="Set Symbol" style="max-width:100px; max-height:100px;"></center>` : "",
 				"",
 				`**Release Date:**\t${details.releaseDate}`,
 				// `**Official Cards:**\t${details.cardCount.official}`,
@@ -159,7 +161,14 @@ export default class PokemonTCGTracker extends Plugin {
 				}),
 			];
 
-			content = [...header, ...tableLines].join("\n") + "\n";
+			const widgetBlock = [
+				"",
+				"```ptt-widget",
+				"```",
+				"",
+			];
+
+			content = [...header, ...widgetBlock, ...tableLines].join("\n") + "\n";
 		} catch (e) {
 			new Notice(`Failed to fetch cards for ${setName}.`);
 			return;
@@ -354,6 +363,112 @@ export default class PokemonTCGTracker extends Plugin {
 		} finally {
 			this.isUpdatingTracking = false;
 		}
+	}
+
+	/** Add cards to a set file by incrementing the appropriate variant columns. */
+	async addCardsToSet(setId: string, cards: {cardNumber: string; variant: string}[]): Promise<void> {
+		const setName = this.settings.cachedSets.find(s => s.id === setId)?.name;
+		if (!setName) {
+			new Notice("Set not found.");
+			return;
+		}
+
+		const folder = this.settings.vaultFolder;
+		const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			new Notice(`File not found: ${filePath}`);
+			return;
+		}
+
+		const content = await this.app.vault.cachedRead(file);
+		const lines = content.split("\n");
+
+		const headerLineIdx = lines.findIndex(l => l.startsWith("| Number"));
+		if (headerLineIdx === -1) {
+			new Notice("Could not find card table in file.");
+			return;
+		}
+
+		const splitRow = (row: string): string[] => {
+			const parts = row.split("|").map(h => h.trim());
+			if (parts.length > 0 && parts[0] === "") parts.shift();
+			if (parts.length > 0 && parts[parts.length - 1] === "") parts.pop();
+			return parts;
+		};
+
+		const headers = splitRow(lines[headerLineIdx] ?? "");
+		const numIdx = headers.indexOf("Number");
+		const variantColNames = ["normal", "holo", "reverse", "firstEdition"];
+		const variantIndices: Record<string, number> = {};
+		for (const v of variantColNames) {
+			const idx = headers.indexOf(v);
+			if (idx !== -1) variantIndices[v] = idx;
+		}
+
+		// Group card additions: {cardNumber -> {variant -> count}}
+		const additions: Record<string, Record<string, number>> = {};
+		for (const card of cards) {
+			if (!additions[card.cardNumber]) additions[card.cardNumber] = {};
+			const entry = additions[card.cardNumber]!;
+			entry[card.variant] = (entry[card.variant] ?? 0) + 1;
+		}
+
+		// Normalize card number for comparison (strip leading zeros)
+		const normalize = (n: string) => String(parseInt(n, 10));
+
+		let updatedCount = 0;
+		const errors: string[] = [];
+		for (let i = headerLineIdx + 2; i < lines.length; i++) {
+			const line = lines[i] ?? "";
+			if (!line.startsWith("|")) break;
+
+			const cols = splitRow(line);
+			if (cols.length < headers.length) continue;
+
+			const cardNum = cols[numIdx] ?? "";
+			const normalizedNum = normalize(cardNum);
+			// Check all additions using normalized comparison
+			const matchKey = Object.keys(additions).find(k => normalize(k) === normalizedNum);
+			if (!matchKey) continue;
+
+			for (const [variant, count] of Object.entries(additions[matchKey]!)) {
+				const colIdx = variantIndices[variant];
+				if (colIdx === undefined) continue;
+				const cellValue = cols[colIdx] ?? "";
+				// Empty cell means this card doesn't have that variant
+				if (cellValue.trim() === "") {
+					errors.push(`Card #${cardNum} does not have variant "${variant}"`);
+					continue;
+				}
+				const current = parseInt(cellValue, 10);
+				cols[colIdx] = String((isNaN(current) ? 0 : current) + count);
+				updatedCount++;
+			}
+
+			lines[i] = "| " + cols.join(" | ") + " |";
+		}
+
+		if (errors.length > 0) {
+			new Notice("⚠️ Skipped:\n" + errors.join("\n"), 8000);
+		}
+
+		if (updatedCount === 0) {
+			new Notice("No matching cards found in the set.");
+			return;
+		}
+
+		this.isUpdatingTracking = true;
+		try {
+			await this.app.vault.modify(file, lines.join("\n"));
+		} finally {
+			this.isUpdatingTracking = false;
+		}
+
+		new Notice(`Added ${cards.length} card(s) to ${setName}.`);
+
+		// Trigger tracking update
+		this.debouncedUpdateTracking(file);
 	}
 
 	async loadSettings() {
