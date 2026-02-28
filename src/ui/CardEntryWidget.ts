@@ -239,6 +239,12 @@ export class CardEntryWidget {
 				handleSubmit();
 			}
 		});
+		entriesContainer.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" && (e.target as HTMLElement)?.classList?.contains("ptt-widget-num-input")) {
+				e.preventDefault();
+				handleSubmit();
+			}
+		});
 	}
 
 	/** Detect the set ID from the current file path. */
