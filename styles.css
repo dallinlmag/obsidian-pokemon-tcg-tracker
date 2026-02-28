@@ -1,9 +1,18 @@
 /*
  * Pokemon TCG Tracker – progress bar styling
  */
+.ptt-tracking {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.ptt-tracking hr {
+	width: 100%;
+}
 .ptt-progress-row {
 	display: flex;
 	align-items: center;
+	justify-content: center;
 	gap: 8px;
 	margin: 2px 0;
 	font-family: var(--font-monospace);
@@ -48,7 +57,7 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
 	padding: 16px;
-	margin: 12px 0;
+	margin: 12px auto;
 	background: var(--background-secondary);
 	max-width: 350px;
 }

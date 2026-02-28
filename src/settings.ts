@@ -121,7 +121,7 @@ export class PTTSettings extends PluginSettingTab {
 					.setTooltip("Reset set file (auto-exports backup first)")
 					.onClick(async () => {
 						new Notice(`Exporting backup before reset…`);
-						await this.plugin.exportCollectionData();
+						await this.plugin.exportSetData(setId);
 						new Notice(`Resetting ${name}…`);
 						await this.plugin.createSetFile(setId, name);
 					}))

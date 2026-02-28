@@ -138,7 +138,7 @@ export default class PokemonTCGTracker extends Plugin {
 				details.logo ? `<center><img src="${details.logo}.webp" alt="Set Logo" style="max-width:300px; max-height:300px;"></center>` : "",
 				details.symbol ? `<center><img src="${details.symbol}.webp" alt="Set Symbol" style="max-width:100px; max-height:100px;"></center>` : "",
 				"",
-				`**Release Date:**\t${details.releaseDate}`,
+				// `**Release Date:**\t${details.releaseDate}`,
 				// `**Official Cards:**\t${details.cardCount.official}`,
 				// `**Total Cards:**\t${details.cardCount.total}`,
 				// `**Variants:**\t${variantList}`,

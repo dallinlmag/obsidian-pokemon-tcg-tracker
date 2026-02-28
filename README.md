@@ -1,90 +1,57 @@
-# Obsidian Sample Plugin
+# Pokemon TCG Tracker
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+An [Obsidian](https://obsidian.md) plugin that helps you track your Pokémon Trading Card Game collection using simple markdown files inside your vault.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+<p align="center">
+  <img src="media/example.png" alt="Pokemon TCG Tracker example" />
+</p>
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## Features
 
-## First time developing plugins?
+### Set Tracking
+- Browse and add any Pokémon TCG set from the complete card database.
+- Each tracked set generates a markdown file with a full card table including card number, name, Pokédex ID, rarity, category, and variants.
+- Set pages display the official set logo and symbol, release date, and live-updating progress bars showing your collection completion.
 
-Quick starting guide for new plugin devs:
+### Collection Management
+- **Card Entry Widget** — An inline widget on each set page for quickly logging new cards. Supports:
+  - Individual card entry with variant toggle buttons (normal, holo, reverse, etc.)
+  - Bulk entry with a `+10` button for opening booster packs.
+  - **Fast Mode** — Type cards in shorthand like `12n,14h,78r,5` for rapid data entry. Numbers without at letter will be the normal variant.
+  
+<p align="center">
+  <img src="media/fast.png" alt="Fast Mode example" />
+</p>
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### Progress Tracking
+- Per-set progress bars for official cards, total cards, and each variant type.
+- Running totals for owned cards and variants
 
-## Releasing new releases
+### Backup & Restore
+- **Export / Import** — Back up your entire collection or individual sets to markdown files in a `backups/` folder within your vault.
+- **Auto-backup on reset** — Resetting a set file automatically exports a backup first, so you never lose data.
+- Backup files are portable markdown with embedded JSON, so they sync with your vault and can be transferred between vaults.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+## Settings
+- **Vault folder** — Choose where set files are created in your vault (with folder autocomplete).
+- **Set management** — Add, remove, reset, export, or import tracked sets.
+- **Cached set list** — Sets are fetched once from the API and cached locally to minimize network calls. Refresh manually when needed.
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+## Future plans
+- **Dashboard** — A central page that will display stats for all sets in your collection. 
+- **Pricing Info** — Pricing info so you can view the total worth of your sets, most valuable card, etc.. 
+- **Pokedex Page** — A page specifically set to track your progress if you are doing a full pokedex challenge.  
+- **Import/Export to other apps** — The ability to import/export to other apps
 
-## Adding your plugin to the community plugin list
+## Ideas? Issues?
+- Open a feature request or bug. I think this repo is public. 
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+## Acknowledgements
 
-## How to use
+Card data is provided by **[TCGdex](https://tcgdex.dev/)** — a free, open-source Pokémon TCG API. Huge thanks to the TCGdex team for maintaining such a comprehensive and accessible database of Pokémon card data. This plugin would not be possible without their work.
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+- TCGdex Website: [https://tcgdex.dev](https://tcgdex.dev)
+- TCGdex GitHub: [https://github.com/tcgdex](https://github.com/tcgdex)
+- TCGdex TypeScript SDK: [@tcgdex/sdk](https://www.npmjs.com/package/@tcgdex/sdk)
 
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
-
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
-
-## API Documentation
-
-See https://docs.obsidian.md
+Pokémon and Pokémon TCG are trademarks of Nintendo, Creatures Inc., and GAME FREAK Inc. This plugin is not affiliated with or endorsed by any of these companies.
