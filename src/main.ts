@@ -471,6 +471,254 @@ export default class PokemonTCGTracker extends Plugin {
 		this.debouncedUpdateTracking(file);
 	}
 
+	/** Split a markdown table row into cells, preserving empty cells. */
+	private splitRow(row: string): string[] {
+		const parts = row.split("|").map(h => h.trim());
+		if (parts.length > 0 && parts[0] === "") parts.shift();
+		if (parts.length > 0 && parts[parts.length - 1] === "") parts.pop();
+		return parts;
+	}
+
+	/** Parse a set file and extract variant column data for each card. */
+	private async parseSetFile(file: TFile): Promise<Record<string, Record<string, number>> | null> {
+		const content = await this.app.vault.cachedRead(file);
+		const lines = content.split("\n");
+		const headerLineIdx = lines.findIndex(l => l.startsWith("| Number"));
+		if (headerLineIdx === -1) return null;
+
+		const headers = this.splitRow(lines[headerLineIdx] ?? "");
+		const numIdx = headers.indexOf("Number");
+		const variantColNames = ["normal", "holo", "reverse", "firstEdition"];
+		const variantIndices: Record<string, number> = {};
+		for (const v of variantColNames) {
+			const idx = headers.indexOf(v);
+			if (idx !== -1) variantIndices[v] = idx;
+		}
+
+		const cards: Record<string, Record<string, number>> = {};
+		for (let i = headerLineIdx + 2; i < lines.length; i++) {
+			const line = lines[i] ?? "";
+			if (!line.startsWith("|")) break;
+			const cols = this.splitRow(line);
+			if (cols.length < headers.length) continue;
+
+			const cardNum = cols[numIdx] ?? "";
+			if (!cardNum) continue;
+
+			const variants: Record<string, number> = {};
+			for (const [v, idx] of Object.entries(variantIndices)) {
+				const cellValue = cols[idx] ?? "";
+				if (cellValue.trim() === "") continue; // card doesn't have this variant
+				const val = parseInt(cellValue, 10);
+				variants[v] = isNaN(val) ? 0 : val;
+			}
+			cards[cardNum] = variants;
+		}
+		return cards;
+	}
+
+	/** Apply variant data to a set file, overwriting variant column values. */
+	private async applyDataToSetFile(file: TFile, cardData: Record<string, Record<string, number>>): Promise<void> {
+		const content = await this.app.vault.cachedRead(file);
+		const lines = content.split("\n");
+		const headerLineIdx = lines.findIndex(l => l.startsWith("| Number"));
+		if (headerLineIdx === -1) return;
+
+		const headers = this.splitRow(lines[headerLineIdx] ?? "");
+		const numIdx = headers.indexOf("Number");
+		const variantColNames = ["normal", "holo", "reverse", "firstEdition"];
+		const variantIndices: Record<string, number> = {};
+		for (const v of variantColNames) {
+			const idx = headers.indexOf(v);
+			if (idx !== -1) variantIndices[v] = idx;
+		}
+
+		for (let i = headerLineIdx + 2; i < lines.length; i++) {
+			const line = lines[i] ?? "";
+			if (!line.startsWith("|")) break;
+			const cols = this.splitRow(line);
+			if (cols.length < headers.length) continue;
+
+			const cardNum = cols[numIdx] ?? "";
+			const data = cardData[cardNum];
+			if (!data) continue;
+
+			for (const [v, idx] of Object.entries(variantIndices)) {
+				const cellValue = cols[idx] ?? "";
+				if (cellValue.trim() === "" && !(v in data)) continue; // card doesn't have this variant
+				if (v in data) {
+					cols[idx] = String(data[v]);
+				}
+			}
+			lines[i] = "| " + cols.join(" | ") + " |";
+		}
+
+		this.isUpdatingTracking = true;
+		try {
+			await this.app.vault.modify(file, lines.join("\n"));
+		} finally {
+			this.isUpdatingTracking = false;
+		}
+		// Trigger tracking update to recalculate Owned and progress bars
+		this.debouncedUpdateTracking(file);
+	}
+
+	/** Get the path to the backups folder. */
+	private getBackupsFolder(): string {
+		const folder = this.settings.vaultFolder;
+		return folder ? `${folder}/backups` : "backups";
+	}
+
+	/** Get the backup file path for a specific set. */
+	private getSetBackupPath(setName: string): string {
+		return `${this.getBackupsFolder()}/${setName}.md`;
+	}
+
+	/** Ensure a folder path exists, creating it if needed. */
+	private async ensureFolder(folderPath: string): Promise<void> {
+		const existing = this.app.vault.getAbstractFileByPath(folderPath);
+		if (!existing) {
+			await this.app.vault.createFolder(folderPath);
+		}
+	}
+
+	/** Wrap JSON in a markdown code block. */
+	private jsonToMarkdown(setName: string, data: any): string {
+		return `# ${setName} — Backup\n\n\`\`\`json\n` + JSON.stringify(data, null, 2) + "\n```\n";
+	}
+
+	/** Extract JSON from a markdown code block. */
+	private markdownToJson(content: string): any | null {
+		const match = content.match(/```json\s*\n([\s\S]*?)\n```/);
+		if (!match) return null;
+		return JSON.parse(match[1]!);
+	}
+
+	/** Write a single set's backup to its own markdown file. */
+	private async writeSetBackup(setId: string, setName: string, cards: Record<string, Record<string, number>>): Promise<string> {
+		await this.ensureFolder(this.getBackupsFolder());
+		const backupPath = this.getSetBackupPath(setName);
+		const data = {exportDate: new Date().toISOString(), setId, setName, cards};
+		const md = this.jsonToMarkdown(setName, data);
+		const existingFile = this.app.vault.getAbstractFileByPath(backupPath);
+		if (existingFile instanceof TFile) {
+			await this.app.vault.modify(existingFile, md);
+		} else {
+			await this.app.vault.create(backupPath, md);
+		}
+		return backupPath;
+	}
+
+	/** Read a single set's backup file. */
+	private async readSetBackup(setName: string): Promise<{setId: string; setName: string; cards: Record<string, Record<string, number>>} | null> {
+		const backupPath = this.getSetBackupPath(setName);
+		const file = this.app.vault.getAbstractFileByPath(backupPath);
+		if (!(file instanceof TFile)) {
+			new Notice(`Backup not found: ${backupPath}`);
+			return null;
+		}
+		try {
+			const content = await this.app.vault.cachedRead(file);
+			return this.markdownToJson(content);
+		} catch {
+			new Notice("Failed to parse backup file.");
+			return null;
+		}
+	}
+
+	/** Export all tracked set collection data, one backup file per set. */
+	async exportCollectionData(): Promise<void> {
+		let exportedCount = 0;
+		for (const setId of this.settings.trackedSetIds) {
+			const setName = this.settings.cachedSets.find(s => s.id === setId)?.name;
+			if (!setName) continue;
+
+			const folder = this.settings.vaultFolder;
+			const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (!(file instanceof TFile)) continue;
+
+			const cards = await this.parseSetFile(file);
+			if (!cards) continue;
+
+			await this.writeSetBackup(setId, setName, cards);
+			exportedCount++;
+		}
+
+		new Notice(`Exported ${exportedCount} set(s) to ${this.getBackupsFolder()}/`);
+	}
+
+	/** Export a single set's collection data to its own backup file. */
+	async exportSetData(setId: string): Promise<void> {
+		const setName = this.settings.cachedSets.find(s => s.id === setId)?.name;
+		if (!setName) {
+			new Notice("Set not found.");
+			return;
+		}
+
+		const folder = this.settings.vaultFolder;
+		const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			new Notice(`File not found: ${filePath}`);
+			return;
+		}
+
+		const cards = await this.parseSetFile(file);
+		if (!cards) {
+			new Notice("Could not parse set file.");
+			return;
+		}
+
+		const backupPath = await this.writeSetBackup(setId, setName, cards);
+		new Notice(`Exported ${setName} to ${backupPath}`);
+	}
+
+	/** Import collection data from all backup files in the backups folder. */
+	async importCollectionData(): Promise<void> {
+		let importedCount = 0;
+		for (const setId of this.settings.trackedSetIds) {
+			const setName = this.settings.cachedSets.find(s => s.id === setId)?.name;
+			if (!setName) continue;
+
+			const data = await this.readSetBackup(setName);
+			if (!data?.cards) continue;
+
+			const folder = this.settings.vaultFolder;
+			const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (!(file instanceof TFile)) continue;
+
+			await this.applyDataToSetFile(file, data.cards);
+			importedCount++;
+		}
+
+		new Notice(`Imported data for ${importedCount} set(s).`);
+	}
+
+	/** Import collection data from a single set's backup file. */
+	async importSetData(setId: string): Promise<void> {
+		const setName = this.settings.cachedSets.find(s => s.id === setId)?.name;
+		if (!setName) {
+			new Notice("Set not found.");
+			return;
+		}
+
+		const data = await this.readSetBackup(setName);
+		if (!data?.cards) return;
+
+		const folder = this.settings.vaultFolder;
+		const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			new Notice(`File not found: ${filePath}`);
+			return;
+		}
+
+		await this.applyDataToSetFile(file, data.cards);
+		new Notice(`Imported data for ${setName}.`);
+	}
+
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<PluginSettings>);
 	}
