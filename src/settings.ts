@@ -42,7 +42,7 @@ export class PTTSettings extends PluginSettingTab {
 			.setName("Vault folder")
 			.setDesc("Folder in your vault where plugin files will be saved. Leave empty for the vault root.")
 			.addText(text => {
-				text.setPlaceholder("e.g. Pokemon/TCG")
+				text.setPlaceholder("e.g. Pokémon/TCG")
 					.setValue(this.plugin.settings.vaultFolder);
 				new FolderSuggest(this.app, text.inputEl, async (folder) => {
 					this.plugin.settings.vaultFolder = folder.path;
