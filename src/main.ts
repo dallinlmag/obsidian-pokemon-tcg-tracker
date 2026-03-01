@@ -608,7 +608,7 @@ export default class PokemonTCGTracker extends Plugin {
 	private async writeSetBackup(setId: string, setName: string, cards: Record<string, Record<string, number>>): Promise<string> {
 		await this.ensureFolder(this.getBackupsFolder());
 		const backupPath = this.getSetBackupPath(setName);
-		const data = {exportDate: new Date().toISOString(), setId, setName, cards};
+		const data = {version: 1, exportDate: new Date().toISOString(), setId, setName, cards};
 		const md = this.jsonToMarkdown(setName, data);
 		const existingFile = this.app.vault.getAbstractFileByPath(backupPath);
 		if (existingFile instanceof TFile) {
