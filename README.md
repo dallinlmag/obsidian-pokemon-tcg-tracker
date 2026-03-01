@@ -46,13 +46,13 @@ Display progress bars for a single tracked set. Specify the set by its TCGdex ID
 ````markdown
 ```ptt-set-stats
 # Set ID can be found in plugin settings
-sv3pt5
+sv03.5
 ```
 ````
 
 ````markdown
 ```ptt-set-stats
-Scarlet & Violet 151
+151
 ```
 ````
 
