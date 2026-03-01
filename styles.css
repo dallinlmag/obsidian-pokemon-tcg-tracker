@@ -177,3 +177,22 @@
 .ptt-hidden {
 	display: none !important;
 }
+
+/*
+ * Stats Widget errors
+ */
+.ptt-stats-error {
+	color: var(--text-muted);
+	font-style: italic;
+	text-align: center;
+}
+.ptt-stats-title {
+	margin: 0 0 6px 0;
+	text-align: center;
+}
+.ptt-stats-logo {
+	display: block;
+	margin: 0 auto 4px auto;
+	max-width: 200px;
+	max-height: 80px;
+}

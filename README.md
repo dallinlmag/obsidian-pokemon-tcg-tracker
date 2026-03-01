@@ -29,6 +29,43 @@ An [Obsidian](https://obsidian.md) plugin that helps you track your Pokémon Tra
 - Per-set progress bars for official cards, total cards, and each variant type.
 - Running totals for owned cards and variants.
 
+### Portable widgets
+The plugin provides code block widgets you can embed in **any** note in your vault.
+
+#### Card entry widget
+Add a card entry form anywhere:
+
+````markdown
+```ptt-widget
+```
+````
+
+#### Set stats widget
+Display progress bars for a single tracked set. Specify the set by its TCGdex ID or by name. Set IDs can be found in the plugin settings under each tracked set.
+
+````markdown
+```ptt-set-stats
+# Set ID can be found in plugin settings
+sv3pt5
+```
+````
+
+````markdown
+```ptt-set-stats
+Scarlet & Violet 151
+```
+````
+
+#### Collection stats widget
+Display aggregate progress bars across all tracked sets:
+
+````markdown
+```ptt-collection-stats
+```
+````
+
+These widgets render live when the note is opened, so they always reflect your latest collection data. Use them to build custom dashboards or embed stats in your daily notes.
+
 ### Backup & restore
 - **Export / import** — Back up your entire collection or individual sets to markdown files in a `backups/` folder within your vault.
 - **Auto-backup on reset** — Resetting a set file automatically exports a backup first, so you never lose data.
@@ -40,7 +77,6 @@ An [Obsidian](https://obsidian.md) plugin that helps you track your Pokémon Tra
 - **Cached set list** — Sets are fetched once from the API and cached locally to minimize network calls. Refresh manually when needed.
 
 ## Future plans
-- **Dashboard** — A central page that will display stats for all sets in your collection.
 - **Pricing info** — Pricing info so you can view the total worth of your sets, most valuable card, etc.
 - **Pokédex page** — A page specifically set to track your progress if you are doing a full Pokédex challenge.
 - **Import/export to other apps** — The ability to import and export to other apps.

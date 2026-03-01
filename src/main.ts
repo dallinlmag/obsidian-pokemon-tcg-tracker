@@ -2,6 +2,7 @@ import {normalizePath, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, PluginSettings, PTTSettings} from "./settings";
 import {TCGService} from "./api/tcgService";
 import {CardEntryWidget} from "./ui/CardEntryWidget";
+import {SetStatsWidget} from "./ui/SetStatsWidget";
 
 export default class PokemonTCGTracker extends Plugin {
 	settings: PluginSettings;
@@ -20,6 +21,15 @@ export default class PokemonTCGTracker extends Plugin {
 		const widget = new CardEntryWidget(this);
 		this.registerMarkdownCodeBlockProcessor("ptt-widget", (source, el, ctx) => {
 			widget.render(el, ctx);
+		});
+
+		// Register portable stats widgets
+		const statsWidget = new SetStatsWidget(this);
+		this.registerMarkdownCodeBlockProcessor("ptt-set-stats", (source, el) => {
+			void statsWidget.renderSetStats(source, el);
+		});
+		this.registerMarkdownCodeBlockProcessor("ptt-collection-stats", (source, el) => {
+			void statsWidget.renderCollectionStats(el);
 		});
 
 		// Listen for file modifications to update progress bars and dashboard
@@ -132,7 +142,7 @@ export default class PokemonTCGTracker extends Plugin {
 				details.logo ? `<center><img src="${details.logo}.webp" alt="Set Logo" style="max-width:300px; max-height:300px;"></center>` : "",
 				details.symbol ? `<center><img src="${details.symbol}.webp" alt="Set Symbol" style="max-width:100px; max-height:100px;"></center>` : "",
 				"",
-				// `**Release Date:**\t${details.releaseDate}`,
+				//  `**Release Date:**\t${details.releaseDate}`,
 				// `**Official Cards:**\t${details.cardCount.official}`,
 				// `**Total Cards:**\t${details.cardCount.total}`,
 				// `**Variants:**\t${variantList}`,
@@ -720,7 +730,7 @@ export default class PokemonTCGTracker extends Plugin {
 	}
 
 	/** Extract progress/tracking data from a set file's HTML tracking section. */
-	private async parseSetTracking(file: TFile): Promise<{
+	async parseSetTracking(file: TFile): Promise<{
 		officialOwned: number; officialMax: number;
 		totalOwned: number; totalMax: number;
 		totalOwnedSum: number;
