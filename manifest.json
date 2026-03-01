@@ -1,11 +1,10 @@
 {
-	"id": "000pokemon-tcg-tracker",
-	"name": "000Pokemon TCG Tracker",
+	"id": "pokemon-tcg-tracker",
+	"name": "Pokémon TCG Tracker",
 	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
-	"description": "Tracks your Pokemon TCG collection in simple markdown.",
+	"minAppVersion": "1.10.0",
+	"description": "Track your Pokémon TCG collection in simple markdown.",
 	"author": "dallinlmag",
 	"authorUrl": "https://github.com/dallinlmag/obsidian-pokemon-tcg-tracker",
-	"fundingUrl": "https://github.com/dallinlmag/obsidian-pokemon-tcg-tracker",
 	"isDesktopOnly": false
 }

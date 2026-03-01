@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "obsidian-pokemon-tcg-tracker",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Track your Pokémon TCG collection in simple markdown.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

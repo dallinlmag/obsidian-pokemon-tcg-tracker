@@ -1,4 +1,4 @@
-import {Notice, Plugin, TFile} from 'obsidian';
+import {normalizePath, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, PluginSettings, PTTSettings} from "./settings";
 import {TCGService} from "./api/tcgService";
 import {CardEntryWidget} from "./ui/CardEntryWidget";
@@ -37,12 +37,14 @@ export default class PokemonTCGTracker extends Plugin {
 	}
 
 	onunload() {
+		if (this.updateDebounceTimer) clearTimeout(this.updateDebounceTimer);
+		if (this.dashboardDebounceTimer) clearTimeout(this.dashboardDebounceTimer);
 	}
 
 	/** Create a markdown file for a tracked set, listing every card name. */
 	async createSetFile(setId: string, setName: string): Promise<void> {
 		const folder = this.settings.vaultFolder;
-		const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+		const filePath = normalizePath(folder ? `${folder}/${setName}.md` : `${setName}.md`);
 
 		// Ensure the folder exists
 		if (folder) {
@@ -384,7 +386,7 @@ export default class PokemonTCGTracker extends Plugin {
 		}
 
 		const folder = this.settings.vaultFolder;
-		const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+		const filePath = normalizePath(folder ? `${folder}/${setName}.md` : `${setName}.md`);
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 		if (!(file instanceof TFile)) {
 			new Notice(`File not found: ${filePath}`);
@@ -576,12 +578,12 @@ export default class PokemonTCGTracker extends Plugin {
 	/** Get the path to the backups folder. */
 	private getBackupsFolder(): string {
 		const folder = this.settings.vaultFolder;
-		return folder ? `${folder}/backups` : "backups";
+		return normalizePath(folder ? `${folder}/backups` : "backups");
 	}
 
 	/** Get the backup file path for a specific set. */
 	private getSetBackupPath(setName: string): string {
-		return `${this.getBackupsFolder()}/${setName}.md`;
+		return normalizePath(`${this.getBackupsFolder()}/${setName}.md`);
 	}
 
 	/** Ensure a folder path exists, creating it if needed. */
@@ -644,7 +646,7 @@ export default class PokemonTCGTracker extends Plugin {
 			if (!setName) continue;
 
 			const folder = this.settings.vaultFolder;
-			const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+			const filePath = normalizePath(folder ? `${folder}/${setName}.md` : `${setName}.md`);
 			const file = this.app.vault.getAbstractFileByPath(filePath);
 			if (!(file instanceof TFile)) continue;
 
@@ -667,7 +669,7 @@ export default class PokemonTCGTracker extends Plugin {
 		}
 
 		const folder = this.settings.vaultFolder;
-		const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+		const filePath = normalizePath(folder ? `${folder}/${setName}.md` : `${setName}.md`);
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 		if (!(file instanceof TFile)) {
 			new Notice(`File not found: ${filePath}`);
@@ -695,7 +697,7 @@ export default class PokemonTCGTracker extends Plugin {
 			if (!data?.cards) continue;
 
 			const folder = this.settings.vaultFolder;
-			const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+			const filePath = normalizePath(folder ? `${folder}/${setName}.md` : `${setName}.md`);
 			const file = this.app.vault.getAbstractFileByPath(filePath);
 			if (!(file instanceof TFile)) continue;
 
@@ -718,7 +720,7 @@ export default class PokemonTCGTracker extends Plugin {
 		if (!data?.cards) return;
 
 		const folder = this.settings.vaultFolder;
-		const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+		const filePath = normalizePath(folder ? `${folder}/${setName}.md` : `${setName}.md`);
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 		if (!(file instanceof TFile)) {
 			new Notice(`File not found: ${filePath}`);
@@ -784,7 +786,7 @@ export default class PokemonTCGTracker extends Plugin {
 	/** Get the dashboard file path. */
 	private getDashboardPath(): string {
 		const folder = this.settings.vaultFolder;
-		return folder ? `${folder}/Dashboard.md` : "Dashboard.md";
+		return normalizePath(folder ? `${folder}/Dashboard.md` : "Dashboard.md");
 	}
 
 	/** Create dashboard if it doesn't exist, otherwise just update it. */
@@ -869,7 +871,7 @@ export default class PokemonTCGTracker extends Plugin {
 			.sort((a, b) => a.name.localeCompare(b.name));
 
 		for (const {id, name} of trackedSorted) {
-			const filePath = folder ? `${folder}/${name}.md` : `${name}.md`;
+			const filePath = normalizePath(folder ? `${folder}/${name}.md` : `${name}.md`);
 			const file = this.app.vault.getAbstractFileByPath(filePath);
 			if (!(file instanceof TFile)) continue;
 

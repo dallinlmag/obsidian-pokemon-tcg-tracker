@@ -31,8 +31,6 @@ export class PTTSettings extends PluginSettingTab {
 		const {containerEl} = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", {text: "Pokemon TCG Tracker"});
-
 		// Use cached sets; fetch from network only on first use or refresh
 		if (this.plugin.settings.cachedSets.length === 0) {
 			await this.refreshSets();
@@ -91,7 +89,7 @@ export class PTTSettings extends PluginSettingTab {
 				}));
 
 		// --- Tracked sets list ---
-		containerEl.createEl("h3", {text: "Tracked Sets"});
+		new Setting(containerEl).setName("Tracked sets").setHeading();
 
 		if (this.plugin.settings.trackedSetIds.length === 0) {
 			containerEl.createEl("p", {
@@ -140,10 +138,10 @@ export class PTTSettings extends PluginSettingTab {
 		}
 
 		// --- Import / Export ---
-		containerEl.createEl("h3", {text: "Import / Export"});
+		new Setting(containerEl).setName("Import / export").setHeading();
 
 		new Setting(containerEl)
-			.setName("Export Collection")
+			.setName("Export collection")
 			.setDesc("Export all tracked set data to a JSON backup file in your vault.")
 			.addButton(btn => btn
 				.setButtonText("Export")
@@ -152,7 +150,7 @@ export class PTTSettings extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Import Collection")
+			.setName("Import collection")
 			.setDesc("Import all set data from the backup file, overwriting current values.")
 			.addButton(btn => btn
 				.setButtonText("Import")
@@ -161,10 +159,10 @@ export class PTTSettings extends PluginSettingTab {
 				}));
 
 		// --- Dashboard ---
-		containerEl.createEl("h3", {text: "Dashboard"});
+		new Setting(containerEl).setName("Dashboard").setHeading();
 
 		new Setting(containerEl)
-			.setName("Regenerate Dashboard")
+			.setName("Regenerate dashboard")
 			.setDesc("Recreate the dashboard file with the latest data from all tracked sets.")
 			.addButton(btn => btn
 				.setButtonText("Regenerate")

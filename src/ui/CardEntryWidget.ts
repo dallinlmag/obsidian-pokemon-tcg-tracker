@@ -1,4 +1,4 @@
-import {MarkdownPostProcessorContext, TFile} from "obsidian";
+import {MarkdownPostProcessorContext, normalizePath, TFile} from "obsidian";
 import PokemonTCGTracker from "../main";
 
 interface CardEntry {
@@ -18,7 +18,7 @@ export class CardEntryWidget {
 		const container = el.createDiv({cls: "ptt-widget"});
 
 		// --- Title ---
-		container.createEl("h3", {text: "Add Pokemon Cards", cls: "ptt-widget-title"});
+		container.createEl("h3", {text: "Add Pokémon cards", cls: "ptt-widget-title"});
 
 		// Detect current set from the file path
 		const currentSetId = this.detectSetFromFile(ctx.sourcePath);
@@ -70,7 +70,7 @@ export class CardEntryWidget {
 			const folder = this.plugin.settings.vaultFolder;
 			const setName = trackedSets.find(s => s.id === setId)?.name;
 			if (!setName) return;
-			const filePath = folder ? `${folder}/${setName}.md` : `${setName}.md`;
+			const filePath = normalizePath(folder ? `${folder}/${setName}.md` : `${setName}.md`);
 			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
 			if (!(file instanceof TFile)) return;
 
@@ -122,7 +122,6 @@ export class CardEntryWidget {
 			numInput.maxLength = 3;
 			numInput.min = "1";
 			numInput.max = "999";
-			numInput.style.width = "60px";
 
 			const toggleContainer = row.createDiv({cls: "ptt-widget-toggles"});
 
@@ -167,7 +166,7 @@ export class CardEntryWidget {
 
 		// --- Add to Pokedex button ---
 		const submitRow = container.createDiv({cls: "ptt-widget-row ptt-widget-center"});
-		const submitBtn = submitRow.createEl("button", {text: "Add To Pokedex", cls: "ptt-widget-submit-btn"});
+		const submitBtn = submitRow.createEl("button", {text: "Add to Pokédex", cls: "ptt-widget-submit-btn"});
 
 		const handleSubmit = async () => {
 			const setId = setSelect.value;
