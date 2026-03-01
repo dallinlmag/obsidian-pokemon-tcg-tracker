@@ -78,6 +78,7 @@ export class PTTSettings extends PluginSettingTab {
 					const name = this.sets.find(s => s.id === value)?.name ?? value;
 					new Notice(`Added set: ${name}`);
 					await this.plugin.createSetFile(value, name);
+					await this.plugin.ensureDashboard();
 					this.display();
 				}))
 			.addExtraButton(btn => btn
@@ -133,6 +134,7 @@ export class PTTSettings extends PluginSettingTab {
 							this.plugin.settings.trackedSetIds.filter(id => id !== setId);
 						await this.plugin.saveSettings();
 						new Notice(`Removed set: ${name}`);
+						await this.plugin.updateDashboard();
 						this.display();
 					}));
 		}
@@ -156,6 +158,19 @@ export class PTTSettings extends PluginSettingTab {
 				.setButtonText("Import")
 				.onClick(async () => {
 					await this.plugin.importCollectionData();
+				}));
+
+		// --- Dashboard ---
+		containerEl.createEl("h3", {text: "Dashboard"});
+
+		new Setting(containerEl)
+			.setName("Regenerate Dashboard")
+			.setDesc("Recreate the dashboard file with the latest data from all tracked sets.")
+			.addButton(btn => btn
+				.setButtonText("Regenerate")
+				.onClick(async () => {
+					await this.plugin.createDashboardFile();
+					new Notice("Dashboard regenerated.");
 				}));
 	}
 

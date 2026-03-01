@@ -7,6 +7,7 @@ export default class PokemonTCGTracker extends Plugin {
 	settings: PluginSettings;
 	tcgService: TCGService;
 	private updateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private dashboardDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 	private isUpdatingTracking = false;
 
 	async onload() {
@@ -21,12 +22,15 @@ export default class PokemonTCGTracker extends Plugin {
 			widget.render(el, ctx);
 		});
 
-		// Listen for file modifications to update progress bars
+		// Listen for file modifications to update progress bars and dashboard
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
 				if (this.isUpdatingTracking) return;
 				if (file instanceof TFile && file.extension === "md") {
+					// Skip dashboard file to avoid self-trigger
+					if (file.path === this.getDashboardPath()) return;
 					this.debouncedUpdateTracking(file);
+					this.debouncedUpdateDashboard();
 				}
 			})
 		);
@@ -189,6 +193,12 @@ export default class PokemonTCGTracker extends Plugin {
 	private debouncedUpdateTracking(file: TFile) {
 		if (this.updateDebounceTimer) clearTimeout(this.updateDebounceTimer);
 		this.updateDebounceTimer = setTimeout(() => this.updateTracking(file), 1000);
+	}
+
+	/** Debounce dashboard updates (longer delay since it reads multiple files). */
+	private debouncedUpdateDashboard() {
+		if (this.dashboardDebounceTimer) clearTimeout(this.dashboardDebounceTimer);
+		this.dashboardDebounceTimer = setTimeout(() => this.updateDashboard(), 2000);
 	}
 
 	/** Parse the table in a set file and update the progress bar HTML. */
@@ -717,6 +727,253 @@ export default class PokemonTCGTracker extends Plugin {
 
 		await this.applyDataToSetFile(file, data.cards);
 		new Notice(`Imported data for ${setName}.`);
+	}
+
+	/** Extract progress/tracking data from a set file's HTML tracking section. */
+	private async parseSetTracking(file: TFile): Promise<{
+		officialOwned: number; officialMax: number;
+		totalOwned: number; totalMax: number;
+		totalOwnedSum: number;
+		variantOwned: Record<string, number>;
+		variantMax: Record<string, number>;
+		variantSums: Record<string, number>;
+	} | null> {
+		const content = await this.app.vault.cachedRead(file);
+		if (!content.includes("<!-- ptt-tracking-start -->")) return null;
+
+		const extract = (label: string): {owned: number; max: number} => {
+			const re = new RegExp(`ptt-progress-label">${label}:<\\/span><span class="ptt-progress-count">(\\d+)\\/(\\d+)<\\/span>`);
+			const m = content.match(re);
+			return m ? {owned: parseInt(m[1]!, 10), max: parseInt(m[2]!, 10)} : {owned: 0, max: 0};
+		};
+
+		const extractSum = (label: string): number => {
+			const re = new RegExp(`ptt-progress-label">${label}:<\\/span><span class="ptt-progress-count">(\\d+)<\\/span>`);
+			const m = content.match(re);
+			return m ? parseInt(m[1]!, 10) : 0;
+		};
+
+		const official = extract("Official");
+		const total = extract("Total");
+		const totalOwnedSum = extractSum("Total Owned");
+
+		const variantNames = ["Normal", "Holo", "Reverse", "FirstEdition"];
+		const variantOwned: Record<string, number> = {};
+		const variantMax: Record<string, number> = {};
+		const variantSums: Record<string, number> = {};
+		for (const v of variantNames) {
+			const data = extract(v);
+			if (data.max > 0) {
+				variantOwned[v.toLowerCase()] = data.owned;
+				variantMax[v.toLowerCase()] = data.max;
+			}
+			const sum = extractSum(v + " Total");
+			if (sum > 0 || data.max > 0) {
+				variantSums[v.toLowerCase()] = sum;
+			}
+		}
+
+		return {
+			officialOwned: official.owned, officialMax: official.max,
+			totalOwned: total.owned, totalMax: total.max,
+			totalOwnedSum,
+			variantOwned, variantMax, variantSums,
+		};
+	}
+
+	/** Get the dashboard file path. */
+	private getDashboardPath(): string {
+		const folder = this.settings.vaultFolder;
+		return folder ? `${folder}/Dashboard.md` : "Dashboard.md";
+	}
+
+	/** Create dashboard if it doesn't exist, otherwise just update it. */
+	async ensureDashboard(): Promise<void> {
+		const dashPath = this.getDashboardPath();
+		const existing = this.app.vault.getAbstractFileByPath(dashPath);
+		if (!existing) {
+			await this.createDashboardFile();
+		} else {
+			await this.updateDashboard();
+		}
+	}
+
+	/** Create or regenerate the full dashboard file. */
+	async createDashboardFile(): Promise<void> {
+		const folder = this.settings.vaultFolder;
+		if (folder) {
+			await this.ensureFolder(folder);
+		}
+
+		const staticHeader = [
+			"# 🃏 Pokémon TCG Dashboard",
+			"",
+			"```ptt-widget",
+			"```",
+			"",
+		];
+
+		const content = [
+			...staticHeader,
+			"<!-- ptt-dashboard-start -->",
+			"<!-- ptt-dashboard-end -->",
+			"",
+		].join("\n");
+
+		const dashPath = this.getDashboardPath();
+		const existingFile = this.app.vault.getAbstractFileByPath(dashPath);
+		if (existingFile instanceof TFile) {
+			await this.app.vault.modify(existingFile, content);
+		} else {
+			await this.app.vault.create(dashPath, content);
+		}
+
+		// Populate the dynamic section
+		await this.updateDashboard();
+	}
+
+	/** Rebuild the dashboard's dynamic stats section from all tracked set files. */
+	async updateDashboard(): Promise<void> {
+		const dashPath = this.getDashboardPath();
+		const dashFile = this.app.vault.getAbstractFileByPath(dashPath);
+		if (!(dashFile instanceof TFile)) return;
+
+		const dashContent = await this.app.vault.cachedRead(dashFile);
+		const startMarker = "<!-- ptt-dashboard-start -->";
+		const endMarker = "<!-- ptt-dashboard-end -->";
+		const startIdx = dashContent.indexOf(startMarker);
+		const endIdx = dashContent.indexOf(endMarker);
+		if (startIdx === -1 || endIdx === -1) return;
+
+		// Collect tracking data from all tracked sets
+		const folder = this.settings.vaultFolder;
+		interface SetTrackingData {
+			officialOwned: number; officialMax: number;
+			totalOwned: number; totalMax: number;
+			totalOwnedSum: number;
+			variantOwned: Record<string, number>;
+			variantMax: Record<string, number>;
+			variantSums: Record<string, number>;
+		}
+		const setStats: {setId: string; setName: string; tracking: SetTrackingData}[] = [];
+
+		let aggOfficialOwned = 0, aggOfficialMax = 0;
+		let aggTotalOwned = 0, aggTotalMax = 0;
+		let aggTotalOwnedSum = 0;
+		const aggVariantOwned: Record<string, number> = {};
+		const aggVariantMax: Record<string, number> = {};
+		const aggVariantSums: Record<string, number> = {};
+
+		const trackedSorted = this.settings.trackedSetIds
+			.map(id => ({id, name: this.settings.cachedSets.find(s => s.id === id)?.name ?? id}))
+			.sort((a, b) => a.name.localeCompare(b.name));
+
+		for (const {id, name} of trackedSorted) {
+			const filePath = folder ? `${folder}/${name}.md` : `${name}.md`;
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (!(file instanceof TFile)) continue;
+
+			const tracking = await this.parseSetTracking(file);
+			if (!tracking) continue;
+
+			setStats.push({setId: id, setName: name, tracking});
+
+			aggOfficialOwned += tracking.officialOwned;
+			aggOfficialMax += tracking.officialMax;
+			aggTotalOwned += tracking.totalOwned;
+			aggTotalMax += tracking.totalMax;
+			aggTotalOwnedSum += tracking.totalOwnedSum;
+
+			for (const [v, count] of Object.entries(tracking.variantOwned)) {
+				aggVariantOwned[v] = (aggVariantOwned[v] ?? 0) + count;
+			}
+			for (const [v, max] of Object.entries(tracking.variantMax)) {
+				aggVariantMax[v] = (aggVariantMax[v] ?? 0) + max;
+			}
+			for (const [v, sum] of Object.entries(tracking.variantSums)) {
+				aggVariantSums[v] = (aggVariantSums[v] ?? 0) + sum;
+			}
+		}
+
+		// Build HTML
+		const progressLine = (label: string, owned: number, total: number) =>
+			`<div class="ptt-progress-row">` +
+			`<span class="ptt-progress-label">${label}:</span>` +
+			`<span class="ptt-progress-count">${owned}/${total}</span>` +
+			`<progress class="ptt-progress-bar" value="${owned}" max="${total}"></progress>` +
+			`</div>`;
+
+		const totalLine = (label: string, count: number) =>
+			`<div class="ptt-progress-row">` +
+			`<span class="ptt-progress-label">${label}:</span>` +
+			`<span class="ptt-progress-count">${count}</span>` +
+			`</div>`;
+
+		const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+		const variantKeys = Object.keys(aggVariantMax);
+
+		const overallSection = [
+			"",
+			"## 📊 Overall Stats",
+			"",
+			`<div class="ptt-tracking">`,
+			"",
+			progressLine("Official", aggOfficialOwned, aggOfficialMax),
+			progressLine("Total", aggTotalOwned, aggTotalMax),
+			...variantKeys.map(k => progressLine(cap(k), aggVariantOwned[k] ?? 0, aggVariantMax[k] ?? 0)),
+			"",
+			`<hr>`,
+			"",
+			totalLine("Total Owned", aggTotalOwnedSum),
+			...variantKeys.map(k => totalLine(cap(k) + " Total", aggVariantSums[k] ?? 0)),
+			"",
+			`</div>`,
+			"",
+		];
+
+		const perSetSections: string[] = [];
+		for (const {setName, tracking} of setStats) {
+			const t = tracking;
+			const setVariantKeys = Object.keys(t.variantMax);
+			perSetSections.push(
+				"",
+				`### [[${setName}]] — ${t.totalOwned}/${t.totalMax}`,
+				"",
+				`<div class="ptt-tracking">`,
+				"",
+				progressLine("Official", t.officialOwned, t.officialMax),
+				progressLine("Total", t.totalOwned, t.totalMax),
+				...setVariantKeys.map(k => progressLine(cap(k), t.variantOwned[k] ?? 0, t.variantMax[k] ?? 0)),
+				"",
+				`<hr>`,
+				"",
+				totalLine("Total Owned", t.totalOwnedSum),
+				...setVariantKeys.map(k => totalLine(cap(k) + " Total", t.variantSums[k] ?? 0)),
+				"",
+				`</div>`,
+				"",
+			);
+		}
+
+		const newDynamic = [
+			startMarker,
+			...overallSection,
+			"---",
+			"",
+			...perSetSections,
+			endMarker,
+		].join("\n");
+
+		const oldDynamic = dashContent.substring(startIdx, endIdx + endMarker.length);
+		if (oldDynamic === newDynamic) return;
+
+		const newContent = dashContent.substring(0, startIdx) + newDynamic + dashContent.substring(endIdx + endMarker.length);
+		this.isUpdatingTracking = true;
+		try {
+			await this.app.vault.modify(dashFile, newContent);
+		} finally {
+			this.isUpdatingTracking = false;
+		}
 	}
 
 	async loadSettings() {
