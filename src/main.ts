@@ -63,18 +63,6 @@ export default class PokemonTCGTracker extends Plugin {
 				return;
 			}
 
-			const variantList = Object.entries(details.variants)
-				.filter(([, v]) => v)
-				.map(([k]) => k)
-				.join(", ") || "None";
-
-			const variantCountList = [
-				details.cardCount.normal > 0 ? `Normal: ${details.cardCount.normal}` : null,
-				details.cardCount.reverse > 0 ? `Reverse: ${details.cardCount.reverse}` : null,
-				details.cardCount.holo > 0 ? `Holo: ${details.cardCount.holo}` : null,
-				details.cardCount.firstEd != null && details.cardCount.firstEd > 0 ? `First Ed: ${details.cardCount.firstEd}` : null,
-			].filter((value): value is string => value !== null).join(", ") || "None";
-
 			// Determine which variant columns this set has
 			// Use set-level variants if available, otherwise derive from card data
 			const variantKeys: string[] = [];
@@ -175,15 +163,15 @@ export default class PokemonTCGTracker extends Plugin {
 			];
 
 			content = [...header, ...widgetBlock, ...tableLines].join("\n") + "\n";
-		} catch (e) {
+		} catch {
 			new Notice(`Failed to fetch cards for ${setName}.`);
 			return;
 		}
 
 		// Create or overwrite the file
 		const existingFile = this.app.vault.getAbstractFileByPath(filePath);
-		if (existingFile) {
-			await this.app.vault.modify(existingFile as any, content);
+		if (existingFile instanceof TFile) {
+			await this.app.vault.modify(existingFile, content);
 		} else {
 			await this.app.vault.create(filePath, content);
 		}
@@ -194,13 +182,13 @@ export default class PokemonTCGTracker extends Plugin {
 	/** Debounce tracking updates to avoid excessive writes while editing. */
 	private debouncedUpdateTracking(file: TFile) {
 		if (this.updateDebounceTimer) clearTimeout(this.updateDebounceTimer);
-		this.updateDebounceTimer = setTimeout(() => this.updateTracking(file), 1000);
+		this.updateDebounceTimer = setTimeout(() => { void this.updateTracking(file); }, 1000);
 	}
 
 	/** Debounce dashboard updates (longer delay since it reads multiple files). */
 	private debouncedUpdateDashboard() {
 		if (this.dashboardDebounceTimer) clearTimeout(this.dashboardDebounceTimer);
-		this.dashboardDebounceTimer = setTimeout(() => this.updateDashboard(), 2000);
+		this.dashboardDebounceTimer = setTimeout(() => { void this.updateDashboard(); }, 2000);
 	}
 
 	/** Parse the table in a set file and update the progress bar HTML. */
@@ -595,15 +583,15 @@ export default class PokemonTCGTracker extends Plugin {
 	}
 
 	/** Wrap JSON in a markdown code block. */
-	private jsonToMarkdown(setName: string, data: any): string {
+	private jsonToMarkdown(setName: string, data: Record<string, unknown>): string {
 		return `# ${setName} — Backup\n\n\`\`\`json\n` + JSON.stringify(data, null, 2) + "\n```\n";
 	}
 
 	/** Extract JSON from a markdown code block. */
-	private markdownToJson(content: string): any | null {
+	private markdownToJson(content: string): Record<string, unknown> | null {
 		const match = content.match(/```json\s*\n([\s\S]*?)\n```/);
 		if (!match) return null;
-		return JSON.parse(match[1]!);
+		return JSON.parse(match[1]!) as Record<string, unknown>;
 	}
 
 	/** Write a single set's backup to its own markdown file. */
@@ -631,7 +619,7 @@ export default class PokemonTCGTracker extends Plugin {
 		}
 		try {
 			const content = await this.app.vault.cachedRead(file);
-			return this.markdownToJson(content);
+			return this.markdownToJson(content) as {setId: string; setName: string; cards: Record<string, Record<string, number>>} | null;
 		} catch {
 			new Notice("Failed to parse backup file.");
 			return null;

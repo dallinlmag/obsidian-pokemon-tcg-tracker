@@ -33,6 +33,14 @@ npm run dev
 npm run build
 ```
 
+### Lint
+
+Always run the linter after building to catch errors before they reach CI:
+
+```bash
+npx eslint ./src/
+```
+
 ## Linting
 
 - To use eslint install eslint from terminal: `npm install -g eslint`

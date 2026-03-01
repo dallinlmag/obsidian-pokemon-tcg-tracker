@@ -9,6 +9,7 @@ An Obsidian community plugin that tracks Pokémon TCG card collections. Users ad
 ```bash
 npm install        # install dependencies
 npm run build      # production build (tsc + esbuild → main.js)
+npx eslint ./src/  # lint — always run after build to catch errors early
 npm run dev        # watch mode for development
 ```
 

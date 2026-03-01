@@ -18,6 +18,7 @@ export class CardEntryWidget {
 		const container = el.createDiv({cls: "ptt-widget"});
 
 		// --- Title ---
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		container.createEl("h3", {text: "Add Pokémon cards", cls: "ptt-widget-title"});
 
 		// Detect current set from the file path
@@ -44,6 +45,7 @@ export class CardEntryWidget {
 		const addBtnRow = container.createDiv({cls: "ptt-widget-row ptt-widget-center"});
 		const plusBtn = addBtnRow.createEl("button", {text: "+", cls: "ptt-widget-plus-btn"});
 		const bulkBtn = addBtnRow.createEl("button", {text: "+10", cls: "ptt-widget-plus-btn"});
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		const fastBtn = addBtnRow.createEl("button", {text: "⚡ Fast", cls: "ptt-widget-plus-btn"});
 
 		// --- Card entry rows container ---
@@ -51,8 +53,7 @@ export class CardEntryWidget {
 		const entries: {numInput: HTMLInputElement; variantToggles: {btn: HTMLButtonElement; variant: string}[]; selectedVariant: string; row: HTMLDivElement}[] = [];
 
 		// --- Fast mode container (hidden by default) ---
-		const fastContainer = container.createDiv({cls: "ptt-widget-fast-container"});
-		fastContainer.style.display = "none";
+		const fastContainer = container.createDiv({cls: "ptt-widget-fast-container ptt-hidden"});
 		fastContainer.createEl("label", {
 			text: "<Number><Variant>  e.g. 12n,14h,78r,5",
 			cls: "ptt-widget-fast-label",
@@ -74,7 +75,7 @@ export class CardEntryWidget {
 			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
 			if (!(file instanceof TFile)) return;
 
-			this.plugin.app.vault.cachedRead(file).then(content => {
+			void this.plugin.app.vault.cachedRead(file).then(content => {
 				const headerMatch = content.match(/^\| Number .+$/m);
 				if (!headerMatch) return;
 				const headers = headerMatch[0].split("|").map(h => h.trim()).filter(Boolean);
@@ -123,7 +124,7 @@ export class CardEntryWidget {
 			numInput.min = "1";
 			numInput.max = "999";
 
-			const toggleContainer = row.createDiv({cls: "ptt-widget-toggles"});
+			row.createDiv({cls: "ptt-widget-toggles"});
 
 			const entry = {numInput, variantToggles: [] as {btn: HTMLButtonElement; variant: string}[], selectedVariant: "normal", row};
 			entries.push(entry);
@@ -143,18 +144,18 @@ export class CardEntryWidget {
 		fastBtn.addEventListener("click", () => {
 			fastMode = !fastMode;
 			if (fastMode) {
-				entriesContainer.style.display = "none";
+				entriesContainer.addClass("ptt-hidden");
 				addBtnRow.querySelectorAll("button").forEach(b => {
-					if (b !== fastBtn) (b as HTMLElement).style.display = "none";
+					if (b !== fastBtn) (b as HTMLElement).addClass("ptt-hidden");
 				});
-				fastContainer.style.display = "";
+				fastContainer.removeClass("ptt-hidden");
 				fastBtn.addClass("ptt-widget-toggle-active");
 			} else {
-				entriesContainer.style.display = "";
+				entriesContainer.removeClass("ptt-hidden");
 				addBtnRow.querySelectorAll("button").forEach(b => {
-					(b as HTMLElement).style.display = "";
+					(b as HTMLElement).removeClass("ptt-hidden");
 				});
-				fastContainer.style.display = "none";
+				fastContainer.addClass("ptt-hidden");
 				fastBtn.removeClass("ptt-widget-toggle-active");
 			}
 		});
@@ -164,8 +165,9 @@ export class CardEntryWidget {
 			updateVariantOptions();
 		});
 
-		// --- Add to Pokedex button ---
+		// --- Add to Pokédex button ---
 		const submitRow = container.createDiv({cls: "ptt-widget-row ptt-widget-center"});
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		const submitBtn = submitRow.createEl("button", {text: "Add to Pokédex", cls: "ptt-widget-submit-btn"});
 
 		const handleSubmit = async () => {
@@ -231,17 +233,17 @@ export class CardEntryWidget {
 			}
 		};
 
-		submitBtn.addEventListener("click", handleSubmit);
+		submitBtn.addEventListener("click", () => { void handleSubmit(); });
 		fastInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
-				handleSubmit();
+				void handleSubmit();
 			}
 		});
 		entriesContainer.addEventListener("keydown", (e) => {
 			if (e.key === "Enter" && (e.target as HTMLElement)?.classList?.contains("ptt-widget-num-input")) {
 				e.preventDefault();
-				handleSubmit();
+				void handleSubmit();
 			}
 		});
 	}

@@ -27,6 +27,7 @@ export class PTTSettings extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-misused-promises
 	async display(): Promise<void> {
 		const {containerEl} = this;
 		containerEl.empty();
@@ -44,9 +45,9 @@ export class PTTSettings extends PluginSettingTab {
 			.addText(text => {
 				text.setPlaceholder("e.g. Pokémon/TCG")
 					.setValue(this.plugin.settings.vaultFolder);
-				new FolderSuggest(this.app, text.inputEl, async (folder) => {
+				new FolderSuggest(this.app, text.inputEl, (folder) => {
 					this.plugin.settings.vaultFolder = folder.path;
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				});
 				text.onChange(async (value) => {
 					this.plugin.settings.vaultFolder = value.trim().replace(/\/+$/, "");
@@ -77,15 +78,16 @@ export class PTTSettings extends PluginSettingTab {
 					new Notice(`Added set: ${name}`);
 					await this.plugin.createSetFile(value, name);
 					await this.plugin.ensureDashboard();
-					this.display();
+					void this.display();
 				}))
 			.addExtraButton(btn => btn
 				.setIcon("refresh-cw")
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setTooltip("Refresh sets from TCGdex")
 				.onClick(async () => {
 					await this.refreshSets();
 					this.sets = this.plugin.settings.cachedSets;
-					this.display();
+					void this.display();
 				}));
 
 		// --- Tracked sets list ---
@@ -133,7 +135,7 @@ export class PTTSettings extends PluginSettingTab {
 						await this.plugin.saveSettings();
 						new Notice(`Removed set: ${name}`);
 						await this.plugin.updateDashboard();
-						this.display();
+						void this.display();
 					}));
 		}
 
@@ -179,7 +181,8 @@ export class PTTSettings extends PluginSettingTab {
 			this.plugin.settings.cachedSets = sets;
 			await this.plugin.saveSettings();
 			new Notice(`Refreshed: ${sets.length} sets loaded from TCGdex.`);
-		} catch (e) {
+		} catch {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			new Notice("TCGdex: failed to fetch sets. Check your internet connection.");
 		}
 	}
